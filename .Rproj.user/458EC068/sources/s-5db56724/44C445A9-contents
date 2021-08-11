@@ -1,0 +1,137 @@
+library(SKAT)
+library(MASS)
+library(GBJ)
+library(data.table)
+library(parallel)
+
+produce_pdf=function(upb=10,B=10000){
+  return(sapply(1:B,function(i){ return(besselK(x=upb*i/B, nu=0)) }))
+}
+
+myp=function(cut,upb,B,pdf=pdf){
+  select=(upb*1:B/B)>cut
+  pdf.sub=pdf[select]
+  pval=sum(pdf.sub)/sum(pdf)
+  return(pval)
+}
+
+ppp=function(GS,mc=40){
+  Q=rbindlist(GS,idcol = "ensg")
+  Mcn=CompNull(Q$za,Q$zb,mc)
+  Msb=Sobel(Q$za,Q$zb)
+  Mjs=JointSig(Q$za,Q$zb)
+  return(data.table(ensg=Q$ensg,Za=Q$za,Zb=Q$zb,Pcn=Mcn$pp,Psb=Msb$pp,Pjs=Mjs$pp))
+}
+
+pre_fit_one=function(M,Y,X){
+  if(anyNA(X)){ 
+    print("warning: missing covariate data")
+    X<-matrix(rep(1, length(Y)))
+  }
+  if(all(Y %in% 0:1)){
+    fit.y<-glm(Y~.+M, family="binomial", data = X) 
+  }else{
+    fit.y<-lm(Y~.+M, data = X)
+  }
+  
+  fit.y.sum<-summary(fit.y)
+  lengX=0
+  for(x in 1:ncol(X)){
+    lengX=lengX+1
+    if(class(X[,x])=="factor"){
+      lengX=lengX+(length(levels(X[,x]))-2)
+    }
+  }
+  
+  indB=(lengX+2):nrow(fit.y.sum$coefficients)
+  b.hat<-fit.y.sum$coefficients[indB, 1]
+  b.sd<-fit.y.sum$coefficients[indB, 2]
+  b=b.hat/b.sd
+  
+  indB=which(!is.na(fit.y$coefficients))[indB]
+  covB=as.matrix(vcov(fit.y)[indB,indB])
+  
+  cb.svd<-svd(covB)
+  b.sum<-sum(t(b.hat)%*%cb.svd$u%*%diag(1/sqrt(cb.svd$d),ncol=length(b.hat)))
+  corrB=cov2cor(covB)
+  
+  return(list(b=b,corrB=corrB,bs=ifelse(b.sum>0,1,-1)))
+}  
+
+TSQ=function(Z,cm){
+  TS=t(Z)%*%ginv(cm,tol=1e-8)%*%Z
+  r=rankMatrix(cm,tol=1e-8)[1]
+  pv=pchisq(TS,r,lower.tail = F)
+  return(list(TSQ=TS,pv=pv))
+}
+
+VCT<-function(M, Y, X=NULL){
+  
+  p<-dim(M)[2]
+  n<-dim(M)[1]
+  if(is.null(X)){ 
+    X<-matrix(rep(1, n))
+    q<-1
+  }else{ q<-dim(X)[2]+1 }
+
+  ty=all(Y %in% 0:1)
+  
+  if(ty){ 
+    fit.y0<-glm(Y~X+M, family="binomial")
+  }else{ fit.y0<-lm(Y~X+M) }
+  
+  b.hat<-fit.y0$coef[(q+1):(q+p)]
+  bhp=(!is.na(b.hat)&b.hat!=0&abs(b.hat)<1e+50)
+  if(sum(bhp)<2){ 
+    print(paste("no convergence, family=",ifelse(ty,"binomial","continuous")))
+    b.hat=apply(M,2,function(M){
+      if(ty){ 
+        fit.y0<-glm(Y~X+M, family="binomial")
+      }else{ fit.y0<-lm(Y~X+M) }
+      return(fit.y0$coefficients[length(fit.y0$coefficients)])
+    })
+  }else{ b.hat=b.hat[which(bhp)] }
+  
+  if (all(Y %in% 0:1)) obj<-SKAT_Null_Model(Y~X, out_type="D")
+  if (!all(Y %in% 0:1)) obj<-SKAT_Null_Model(Y~X, out_type="C")
+  pp<-SKAT(M, obj)$p.value
+  zz<-safe_z(pp)*ifelse(sum(b.hat)>0, 1, -1)
+
+  return(list(VCT=zz,pv=pp))
+}
+
+CompNull<-function(a, b){
+  pp=zz=rep(NA,length(a))
+  nx=(is.na(a)|is.na(b))
+  a=a[!nx]
+  b=b[!nx]
+  ab=abs(a*b)
+  upb=ceiling(max(ab)/10)*10
+  B=upb/prec
+  pdf=produce_pdf(upb=upb,B=B)
+  pp0<-sapply(ab, myp, upb, B, pdf)
+  pp1<-sapply(ab/sd(a), myp, upb, B, pdf)
+  pp2<-sapply(ab/sd(b), myp, upb, B, pdf)
+  pp.comp<-pp1+pp2-pp0
+  min_pp=min(pp.comp[pp.comp>0])
+  pp.comp[pp.comp<=0]=min_pp
+  pp.comp[pp.comp>1]=1
+  pp[!nx]=pp.comp
+  zz[!nx]=safe_z(pp.comp)*ifelse(a*b>0,1,-1)
+  return(list(pp=pp,zz=zz))
+}
+
+Sobel=function(a, b, mc=40){
+  zz=a*b/sqrt(a^2+b^2)
+  zz[a==0&b==0]=0
+  pp=2*pnorm(-abs(zz))
+  return(list(pp=pp,zz=zz))
+}
+
+JointSig=function(a, b, mc=40){
+  zz=apply(cbind(abs(a),abs(b)),1,min)*ifelse(a*b>0,1,-1)
+  pp=2*pnorm(-abs(zz))
+  return(list(pp=pp,zz=zz))
+}
+
+safe_z=function(pp){ return(ifelse(pp<8e-324,40,qnorm(pp/2,lower.tail = F))) }

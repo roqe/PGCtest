@@ -1,0 +1,174 @@
+## submit to server
+load("~/Server/CNPG/step2.RData")
+library(data.table)
+library(parallel)
+library(snpStats)
+library(MACtest)
+library(MASS)
+library(GBJ)
+source("~/Dropbox/YT_Lab/CNPG/CNPG_functions.R")
+
+table(mpp_twb$relationship)
+mpp_tg=mpp_twb[!mpp_twb$relationship%in%c("intron"),] #target set
+tg=split(mpp_tg,mpp_tg$gene_symbol) #set as gene symbol or ENST
+#summary(sapply(tg[2:length(tg)],nrow))
+#summary(sapply(tg[2:length(tg)],function(tg){return(length(unique(tg$rs_ID)))}))
+#tt=split(mpp_twb,mpp_twb$transcript_ID)
+
+X=c_twb[,c(5:9,11:25)]
+# Y=as.list(y_twb[,5:ncol(y_twb)])
+# M=lapply(tg[2:length(tg)],function(tt){
+#   dt=as(twb$genotypes[,unique(tt$rs_ID)], "numeric")
+#   if(ncol(dt)>1){ return(dt) }
+# })
+# M=M[!sapply(M,is.null)]
+# save(M,Y,X,tg,file="twb.RData")
+# 
+# load("twb_small.RData")
+
+R=mclapply(tg[15001:length(tg)],function(tt){
+  dt=as(twb$genotypes[,unique(tt$rs_ID)], "numeric")
+  ndt=ncol(dt)
+  if(ndt<2){ 
+    return(NULL) 
+  }else{
+    print(paste0(which(names(tg)%in%tt$gene_symbol[1]),"/",length(tg)-1," - ",tt$gene_symbol[1],": ",ndt),quote=FALSE)
+    PV=lapply(y_twb[,5:ncol(y_twb)],function(y){
+      nad=is.na(y)
+      PG_VCT=VCT(M=dt[!nad,],Y=y[!nad],X=as.matrix(X[!nad,]))
+      RG=pre_fit_one(M=dt[!nad,],Y=y[!nad],X=X[!nad,])
+      PG_TSQ=TSQ(RG$b,RG$corrB)
+      PG_GBJ=GBJ(RG$b,RG$corrB)
+      PG_GHC=GHC(RG$b,RG$corrB)
+      PG_mnP=minP(RG$b,RG$corrB)
+      return(list(VCT=PG_VCT$pv,TSQ=PG_TSQ$pv,GBJ=PG_GBJ$GBJ_pvalue,
+                  GHC=PG_GHC$GHC_pvalue,mnP=PG_mnP$minP_pvalue))
+    })
+    return(rbindlist(PV,idcol ="phenotype"))
+  } 
+},mc.cores = 8,mc.preschedule = F)
+
+save(R,file="PV_4.RData")
+
+
+C=sapply(tg[2:length(tg)],function(tt){
+  return(length(unique(tt$rs_ID)))
+})
+
+###########################################################################################################################################################
+
+load("~/Dropbox/YT_Lab/CNPG/PVall_c.RData")
+library(data.table)
+library(parallel)
+source("~/Dropbox/YT_Lab/CNPG/CNPG_functions.R")
+
+E=sapply(RR,is.data.table) #sum(E)=17899
+RRR=rbindlist(RR[E],idcol="gene")
+
+TSQ=dcast(RRR,gene~phenotype,value.var = "TSQ")
+
+PPP=cbind(TSQ$gene,matrix(p.adjust(as.matrix(TSQ[,c(2:32)]),method = "fdr"),ncol=31))
+colnames(PPP)=colnames(PP)
+PPP=as.data.table(PPP)
+PPP$pg=apply(PPP[,2:32],1,function(r){
+  return(ifelse((sum(r<0.05)>1),T,F))
+})
+sum(PPP$pg,na.rm = T) #number of PG genes
+View(PPP[PPP$pg,])
+
+mx=20
+upb=ceiling(mx/10)*10
+B=upb*1000
+pdf=produce_pdf(upb,B)
+
+ZZZ=as.data.frame(ZZ)
+ZZZ=ZZZ[,-grep("_1",colnames(ZZZ))]
+Q2=apply((combn(ncol(ZZZ)-1,2)+1),2,function(id){
+  a=ZZZ[,id[1]]
+  b=ZZZ[,id[2]]
+  a[is.infinite(a)]=8.3*ifelse(a>0,1,-1)
+  b[is.infinite(b)]=8.3*ifelse(b>0,1,-1)
+  rh=cor(a,b)
+  ss=svd(matrix(c(1,rh,rh,1),nrow=2))
+  zz=ss$u%*%diag(1/sqrt(ss$d))%*%ss$v%*%rbind(a,b)
+  # print(cor(zz[1,],zz[2,]))
+  # ind=(!is.na(a))&(!is.na(b))
+  # p=MT_Comp(a[ind],b[ind])
+  p=MT_Comp(zz[1,],zz[2,])
+  #y_twb[names(ZZ)[id[1]]]
+  if(sum(p<0.05)>length(p)*0.05) print(paste(names(ZZ)[id[1]],"&",names(ZZ)[id[2]]," / #sig CN p-value: ",sum(p<0.05),"/",length(p)),quote=FALSE)
+  return(p)
+})
+colnames(Q2)=apply((combn(ncol(ZZZ)-1,2)+1),2,function(id){ return(paste(names(ZZZ)[id[1]],"&",names(ZZZ)[id[2]])) })
+rownames(Q2)=ZZ$gene
+save(Q2,file="Q2.RData")
+
+ll2=apply(Q2,2,function(q){ return(sum(p.adjust(q,method = "fdr")<0.1)) })
+ll2=ll2[order(ll2,decreasing = T)]
+write.csv(ll2[ll2>nrow(Q)*0.05],file="plist.csv",quote = F)
+pl2=ll2[ll2>nrow(Q2)*0.05]
+xx2=cbind(as.data.frame(do.call(rbind,strsplit(names(pl2)," & "))),as.numeric(pl2),names(pl2))
+
+library(igraph)
+library(UpSetR)
+library(visNetwork)
+
+cut=xx[,3][nrow(xx)*0.2] 
+G=graph_from_edgelist(as.matrix(xx[xx[,3]>cut,1:2]), directed = F)
+E(G)$num_genes=xx[xx[,3]>cut,3]
+components(G)
+gg=decompose(G)
+plot(G,edge.width = E(G)$num_genes/100)
+
+cut=xx2[,3][nrow(xx2)*0.2] 
+G2=graph_from_edgelist(as.matrix(xx2[xx2[,3]>cut,1:2]), directed = F)
+E(G2)$num_genes=xx2[xx2[,3]>cut,3]
+E(G2)$weights=(E(G2)$num_genes-min(E(G2)$num_genes)+1)/(max(E(G2)$num_genes)+1)
+C2=cluster_fast_greedy(G2, weights = E(G2)$weights)
+C3=cluster_louvain(G2, weights = E(G2)$weights)
+plot(C2, G2, edge.width = E(G2)$weights*2)
+plot(C3, G2, edge.width = E(G2)$weights*2)
+visIgraph(G2)
+plot_dendrogram(C2)
+g2=lapply(1:max(C2$membership),function(g){
+  return(induced_subgraph(G2, which(C2$membership==g),impl = c("copy_and_delete")))
+})
+
+
+cc=sapply(g2,function(gg){
+  el=c(apply(as_edgelist(gg),1,paste,collapse = " & "),apply(as_edgelist(gg)[,c(2,1)],1,paste,collapse = " & "))
+  QQ=apply(Q2[,colnames(Q2)%in%el],2,function(q){
+    #q=p.adjust(q,method = "fdr")
+    if(sum(q<0.05)==0){ return(NULL) }
+    else return(q[q<0.05])
+  })
+  ns=sapply(QQ,names)
+  ts=table(unlist(ns))
+  return(list(it=Reduce(intersect,ns),un=Reduce(union,ns),ts=names(ts[ts>(vcount(gg)-1)])))
+})
+
+listInput<-list(
+  Diabetes = cc[,1]$ts,
+  Lipid = cc[,2]$ts,
+  HBV = cc[,3]$ts,
+  CBC = cc[,4]$ts,
+  Hepatitis = cc[,5]$ts)
+upset(fromList(listInput), order.by = c("freq"),queries = list(list(query = intersects, params = list("CBC","Diabetes"), color = "orange", active = T),
+                                                               list(query = intersects, params = list("CBC","Hepatitis"), color = "orange", active = T),
+                                                               list(query = intersects, params = list("CBC","HBV"), color = "orange", active = T),
+                                                               list(query = intersects, params = list("Diabetes","Hepatitis"), color = "orange", active = T),
+                                                               list(query = intersects, params = list("CBC","Lipid"), color = "orange", active = T)))
+
+CNPG=function(y){
+  mclapply(tg[2:length(tg)],function(tt){
+    dt=as(twb$genotypes[,unique(tt$rs_ID)], "numeric")
+    ndt=ncol(dt)
+    if(ndt<5){ 
+      return(NULL) 
+    }else{
+      nad=is.na(y)
+      mv=MMT_VCT_PG(M=dt[!nad,],Y=y[!nad],X=as.matrix(c_twb[!nad,c(5:9,11:25)]))
+      return(list(pp=mv[1],zz=mv[2]))
+    } 
+  },mc.cores = 40)
+}

@@ -1,0 +1,44 @@
+H00=sim_mediation_data(num_mediators = 10)
+
+SR=mclapply(1:num_mechanisms,function(c){
+  M=H00$M[[c]]
+  Y=H00$Y[[c]]
+  X=H00$X
+  PV=apply(Y,2,function(y){
+    PG_VCT=VCT(M=M,Y=y,X=X)
+    RG=pre_fit_one(M=M,Y=y,X=as.data.frame(X))
+    PG_TSQ=TSQ(RG$b,RG$corrB)
+    PG_GBJ=GBJ(RG$b,RG$corrB)
+    PG_GHC=GHC(RG$b,RG$corrB)
+    PG_mnP=minP(RG$b,RG$corrB)
+    return(list(VCT=safe_z(PG_VCT$pv)*RG$bs,
+                TSQ=safe_z(PG_TSQ$pv)*RG$bs,
+                GBJ=safe_z(PG_GBJ$GBJ_pvalue)*RG$bs,
+                GHC=safe_z(PG_GHC$GHC_pvalue)*RG$bs,
+                mnP=safe_z(PG_mnP$minP_pvalue)*RG$bs))
+  })
+  return(rbindlist(PV,idcol ="phenotype"))
+},mc.cores = 12,mc.preschedule = F)
+
+RRR=rbindlist(SR,idcol="gene")
+prec=1e-3
+
+sapply(c("VCT","TSQ","GBJ","GHC","mnP"),function(app){
+  ZZZ=dcast(RRR,gene~phenotype,value.var = app)
+  Q=apply((combn(ncol(ZZZ)-1,2)+1),2,function(id){
+    a=unlist(ZZZ[, .SD, .SDcols = id[1]])
+    b=unlist(ZZZ[, .SD, .SDcols = id[2]])
+
+    rh=cor(a,b)
+    ss=svd(matrix(c(1,rh,rh,1),nrow=2))
+    zz=ss$u%*%diag(1/sqrt(ss$d))%*%ss$v%*%rbind(a,b)
+
+    Mcn=CompNull(zz[1,],zz[2,])
+    Msb=Sobel(zz[1,],zz[2,])
+    Mjs=JointSig(zz[1,],zz[2,])
+    #if(sum(p<0.05)>length(p)*0.05) print(paste(names(ZZ)[id[1]],"&",names(ZZ)[id[2]]," / #sig CN p-value: ",sum(p<0.05),"/",length(p)),quote=FALSE)
+    return(data.table::data.table(ensg=ZZZ$gene,app=app,Za=a,Zb=b,Pcn=Mcn$pp,Psb=Msb$pp,Pjs=Mjs$pp))
+  })
+})
+
+hist(Q[[20]]$Psb)
