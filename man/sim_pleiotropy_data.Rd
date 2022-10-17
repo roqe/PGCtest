@@ -7,16 +7,16 @@
 sim_pleiotropy_data(
   hypo = "H00",
   sample_size = 1000,
-  num_variants = 30,
+  num_variants = 20,
   num_genes = 10000,
-  num_traitss = 5,
+  num_traits = 5,
   num_covariates = 2,
   rho = 0,
   har = 0.01,
   gpr = 1,
   mm = 0,
   vv = 0,
-  sm = 5
+  sm = 2
 )
 }
 \arguments{
@@ -29,6 +29,8 @@ sim_pleiotropy_data(
 \item{num_variants}{Number of variants within one gene, default=30.}
 
 \item{num_genes}{Number of genes, default=10000.}
+
+\item{num_traits}{Number of outcome, default=5.}
 
 \item{num_covariates}{Number of covariates, default=2.}
 
@@ -43,8 +45,6 @@ sim_pleiotropy_data(
 \item{vv}{The variance of the signal, default=0.1. (affect when hypo is not "H00")}
 
 \item{sm}{Number of mediators with signal within one gene, default=5. (affect when hypo is not "H00")}
-
-\item{num_traits}{Number of outcome, default=5.}
 }
 \description{
 Simulate data for analysis.
