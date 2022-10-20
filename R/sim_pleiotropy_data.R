@@ -56,8 +56,13 @@ sim_pleiotropy_data=function(hypo="H00",sample_size=1000,num_variants=20,num_gen
     })
     return(apply(X,1,sum)+apply(MMM,1,sum)+rnorm(sample_size))
   }))
-  names(M)=paste0("g",1:length(M))
-  names(Y)=paste0("p",1:ncol(Y))
   names(X)=paste0("c",1:ncol(X))
+  names(Y)=paste0("p",1:ncol(Y))
+  names(M)=paste0("g",1:length(M))
+  M=sapply(names(M),function(nm){
+    SV=data.frame(M[[nm]])
+    names(SV)=paste0(nm,"_s",1:ncol(SV))
+    return(list(SV))
+  })
   return(list(M=M,Y=Y,X=X))
 }

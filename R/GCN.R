@@ -19,8 +19,12 @@ GCN=function(HA,mc=5,prec=1e-3,GC=NULL){
     M=HA$M[[nm]]
     PV=lapply(names(Y),function(ny){
       if(!is.null(GC)){
-        cad=which(!GC[[ny]]%in%nm)[1:(length(GC[[1]])-1)]
-        XX=do.call(cbind,HA$M[GC[[ny]][cad]])
+        cad=which(!GC[[ny]]$gene%in%nm)[1:(nrow(GC[[1]])-1)]
+        gs=cbind(GC[[ny]]$gene[cad],GC[[ny]]$leadSNP[cad])
+        XX=apply(gs,1,function(gs){
+          return(HA$M[[gs[1]]][[gs[2]]])
+        })
+        colnames(XX)=gs[,2]
         X=cbind(X,XX)
       }
       y=Y[[ny]]
@@ -35,11 +39,12 @@ GCN=function(HA,mc=5,prec=1e-3,GC=NULL){
                   GBJ=safe_z(PG_GBJ$GBJ_pvalue)*RG$bs,
                   GHC=safe_z(PG_GHC$GHC_pvalue)*RG$bs,
                   mnP=safe_z(PG_mnP$minP_pvalue)*RG$bs,
-                  ACAT=safe_z(PG_ACAT)*RG$bs))
+                  ACAT=safe_z(PG_ACAT)*RG$bs,
+                  leadSNP=names(RG$b)[which.max(abs(RG$b))]))
     })
     names(PV)=names(Y)
     return(data.table::rbindlist(PV,idcol="trait"))
-  },mc.cores = mc,mc.preschedule = F,mc.cleanup = T)
+  },mc.cores = mc,mc.preschedule = T,mc.cleanup = T)
   names(GS)=nM
   return(data.table::rbindlist(GS,idcol="gene"))
 }
