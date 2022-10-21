@@ -11,7 +11,7 @@
 #' HA=sim_mediation_data(hypo="HA",mm=0.1,vv=0.1,sm=10)
 #' stat=GCN(HA)
 
-GCN=function(HA,mc=5,prec=1e-3,GC=NULL){
+GCN=function(HA,mc=5,prec=1e-3,GC=NULL,bSNP=2){
   Y=HA$Y
   X=HA$X
   nM=names(HA$M)[!sapply(HA$M,is.null)]
@@ -21,10 +21,10 @@ GCN=function(HA,mc=5,prec=1e-3,GC=NULL){
       if(!is.null(GC)){
         cad=which(!GC[[ny]]$gene%in%nm)[1:(nrow(GC[[1]])-1)]
         gs=cbind(GC[[ny]]$gene[cad],GC[[ny]]$leadSNP[cad])
-        XX=apply(gs,1,function(gs){
-          return(HA$M[[gs[1]]][[gs[2]]])
-        })
-        colnames(XX)=gs[,2]
+        XX=do.call(cbind,apply(gs,1,function(gs){
+          slist=strsplit(gs[2],";")[[1]]
+          return(HA$M[[gs[1]]][slist])
+        }))
         X=cbind(X,XX)
       }
       y=Y[[ny]]
@@ -40,7 +40,7 @@ GCN=function(HA,mc=5,prec=1e-3,GC=NULL){
                   GHC=safe_z(PG_GHC$GHC_pvalue)*RG$bs,
                   mnP=safe_z(PG_mnP$minP_pvalue)*RG$bs,
                   ACAT=safe_z(PG_ACAT)*RG$bs,
-                  leadSNP=names(RG$b)[which.max(abs(RG$b))]))
+                  leadSNP=paste(unique(c(names(RG$b)[which.max(abs(RG$b))],names(RG$b)[which(abs(RG$b)>bSNP)])),collapse = ";")))
     })
     names(PV)=names(Y)
     return(data.table::rbindlist(PV,idcol="trait"))
