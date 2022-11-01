@@ -4,7 +4,7 @@
 #'             "H02" refers to the cases with disjoint signals, if rho=0 then it is a null, otherwise alternative;
 #'             "HA" refer to the alternative hypothesis with connected signals.
 #' @param sample_size Number of samples, default=1000.
-#' @param num_variants Number of variants within one gene, default=30.
+#' @param num_variants Number of variants within one gene, default=20.
 #' @param num_genes Number of genes, default=10000.
 #' @param num_traits Number of outcome, default=5.
 #' @param num_covariates Number of covariates, default=2.

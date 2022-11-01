@@ -26,7 +26,7 @@ sim_pleiotropy_data(
 
 \item{sample_size}{Number of samples, default=1000.}
 
-\item{num_variants}{Number of variants within one gene, default=30.}
+\item{num_variants}{Number of variants within one gene, default=20.}
 
 \item{num_genes}{Number of genes, default=10000.}
 

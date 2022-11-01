@@ -8,10 +8,10 @@ pre_fit_one=function(M,Y,X){
 
   fit.y.sum<-summary(fit.y)
   indB=2:(ncol(M)+1)
-  b.hat<-fit.y.sum$coefficients[indB, 1]
-  b.sd<-fit.y.sum$coefficients[indB, 2]
+  indB=indB[which(indB%in%which(!is.na(fit.y$coefficients)))]
+  b.hat<-fit.y.sum$coefficients[2:(length(indB)+1), 1]
+  b.sd<-fit.y.sum$coefficients[2:(length(indB)+1), 2]
   b=b.hat/b.sd
-  indB=which(!is.na(fit.y$coefficients))[indB]
   covB=as.matrix(vcov(fit.y)[indB,indB])
   cb.svd<-svd(covB)
   b.sum<-sum(t(b.hat)%*%cb.svd$u%*%diag(1/sqrt(cb.svd$d),ncol=length(b.hat)))
