@@ -1,12 +1,12 @@
-#' Simulate data for analysis.
+#' For simulating pleiotropic data from polygenic traits.
 #'
 #' @param hypo Hypothesis type: "H00" refers to the complete null hypothese (default);
 #'             "H02" refers to the cases with disjoint signals, if rho=0 then it is a null, otherwise alternative;
 #'             "HA" refer to the alternative hypothesis with connected signals.
-#' @param sample_size Number of samples, default=300.
+#' @param sample_size Number of samples, default=500.
 #' @param num_variants Number of variants within one gene, default=20.
 #' @param num_genes Number of genes, default=10000.
-#' @param num_pleio_genes Number of pleiotropic genes, default=30.
+#' @param num_pleio_genes Number of pleiotropic genes, default=20.
 #' @param num_traits Number of outcome, default=5.
 #' @param num_covariates Number of covariates, default=2.
 #' @param rho The correlation coefficients between the variants, default=0.
@@ -14,16 +14,20 @@
 #' @param mm The mean of the signal, default=0.
 #' @param vv The variance of the signal, default=0.
 #' @param sm Number of mediators with signal within one gene, default=2.
+#' @param bin Binary exposure, default=True.
 #' @export
 #' @importFrom MASS mvrnorm
 #' @examples
-#' H00=sim_mediation_data()
-#' H00_ss=sim_mediation_data(sample_size=100)
-#' H00_rh=sim_mediation_data(rho=0)
-#' H02=sim_mediation_data(hypo="H02",mm=0,vv=0.05,sm=2)
-#' HA=sim_mediation_data(hypo="HA",mm=0.1,vv=0.1,sm=10)
+#' H00=sim_pleiotropy_data(hypo = "H0")
+#' preR=GCN(H00,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T)
+#' FR00=PGC(preR)
+#' HAA=sim_pleiotropy_data(hypo = "HA",mm = 1,vv = 1,gpr = 1,rho = 0.3)
+#  preR=GCN(HAA,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T)
+#. GC=select_GC(preR,10)
+#. aftR=GCN(HAA,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T,GC=GC)
+#  FRAA=PGC(aftR)
 
-sim_pleiotropy_data=function(hypo="H00",sample_size=300,num_variants=20,num_genes=10000,num_pleio_gene=20,
+sim_pleiotropy_data=function(hypo="H00",sample_size=500,num_variants=20,num_genes=10000,num_pleio_gene=20,
                              num_traits=5,num_covariates=2,rho=0,gpr=0,mm=0,vv=0,sm=2,bin=T){
   X=data.frame(sapply(1:num_covariates,function(x){ return(rnorm(sample_size)) }))
   names(X)=paste0("c",1:ncol(X))

@@ -1,12 +1,18 @@
-#' @param stat Statistics evaluating the mechansisms
-#' @param mc Number of cores for parallel computing, default=5.
-#' @param prec The unit to construct empirical normal product pdf using in composite test, default=1e-3.
+#' For pleiotropic assessment.
+#'
+#' @param stt Estimates of gene-trait associations, output of GCN.
+#' @param dcrr Apply decorrelation or not, default=False
 #' @import data.table
 #' @export
 #' @examples
-#' HA=sim_mediation_data(hypo="HA",mm=0.1,vv=0.1,sm=10)
-#' stat=GCN(HA)
-#' FR=PGC(stat)
+#' H00=sim_pleiotropy_data(hypo = "H0")
+#' preR=GCN(H00,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T)
+#' FR00=PGC(preR)
+#' HAA=sim_pleiotropy_data(hypo = "HA",mm = 1,vv = 1,gpr = 1,rho = 0.3)
+#  preR=GCN(HAA,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T)
+#. GC=select_GC(preR,10)
+#. aftR=GCN(HAA,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T,GC=GC)
+#  FRAA=PGC(aftR)
 
 PGC=function(stt,dcrr=F){
   RR=list()

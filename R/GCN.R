@@ -1,8 +1,14 @@
-#' @param HA Dataset
+#' For gene-trait associations.
+#'
+#' @param HA Dataset, output of sim_pleiotropy_data.
 #' @param mc Number of cores for parallel computing, default=5.
 #' @param GC List for adjusting co-regulating variants, the output from select_GC.
 #' @param bSNP Threshold for selecting significant variants to be adjusted, default=2.
 #' @param apply_TSQ Use Hotelling's T-squared statistic for gene-trait association, default=False.
+#' @param apply_GBJ Use Generalized Berk-Jones for gene-trait association, default=False.
+#' @param apply_GHC Use Generalized Higher Criticism for gene-trait association, default=False.
+#' @param apply_mnP Use minimum p value for gene-trait association, default=False.
+#' @param apply_ACAT Use ACAT for gene-trait association, default=True.
 #' @import parallel
 #' @import SKAT
 #' @import GBJ
@@ -10,8 +16,14 @@
 #' @import data.table
 #' @export
 #' @examples
-#' HA=sim_mediation_data(hypo="HA",mm=0.1,vv=0.1,sm=10)
-#' stat=GCN(HA)
+#' H00=sim_pleiotropy_data(hypo = "H0")
+#' preR=GCN(H00,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T)
+#' FR00=PGC(preR)
+#' HAA=sim_pleiotropy_data(hypo = "HA",mm = 1,vv = 1,gpr = 1,rho = 0.3)
+#  preR=GCN(HAA,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T)
+#. GC=select_GC(preR,10)
+#. aftR=GCN(HAA,mc=40,apply_TSQ = T,apply_GBJ = T,apply_GHC = T,apply_mnP = T,GC=GC)
+#  FRAA=PGC(aftR)
 
 GCN=function(HA,mc=5,GC=NULL,bSNP=2,apply_TSQ=F,apply_GBJ=F,apply_GHC=F,apply_mnP=F,apply_ACAT=T,single=F,fill=F){
   if(sum(apply_TSQ,apply_GBJ,apply_GHC,apply_mnP,apply_ACAT)==0){
