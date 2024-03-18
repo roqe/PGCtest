@@ -6,17 +6,18 @@
 \usage{
 sim_pleiotropy_data(
   hypo = "H00",
-  sample_size = 1000,
+  sample_size = 300,
   num_variants = 20,
   num_genes = 10000,
+  num_pleio_gene = 20,
   num_traits = 5,
   num_covariates = 2,
   rho = 0,
-  har = 0.01,
-  gpr = 1,
+  gpr = 0,
   mm = 0,
   vv = 0,
-  sm = 2
+  sm = 2,
+  bin = T
 )
 }
 \arguments{
@@ -24,7 +25,7 @@ sim_pleiotropy_data(
 "H02" refers to the cases with disjoint signals, if rho=0 then it is a null, otherwise alternative;
 "HA" refer to the alternative hypothesis with connected signals.}
 
-\item{sample_size}{Number of samples, default=1000.}
+\item{sample_size}{Number of samples, default=300.}
 
 \item{num_variants}{Number of variants within one gene, default=20.}
 
@@ -34,17 +35,17 @@ sim_pleiotropy_data(
 
 \item{num_covariates}{Number of covariates, default=2.}
 
-\item{rho}{The correlation coefficients between the variants, default=0.3.}
+\item{rho}{The correlation coefficients between the variants, default=0.}
 
-\item{har}{The percentage of genes with signals within one experiment, default=0.1. (affect when hypo is not "H00")}
+\item{gpr}{The percentage of signal overlaps between genes, default=0.}
 
-\item{gpr}{The percentage of signal overlaps between genes, default=0.5. (affect when hypo is "HA")}
+\item{mm}{The mean of the signal, default=0.}
 
-\item{mm}{The mean of the signal, default=0.1. (affect when hypo is not "H00")}
+\item{vv}{The variance of the signal, default=0.}
 
-\item{vv}{The variance of the signal, default=0.1. (affect when hypo is not "H00")}
+\item{sm}{Number of mediators with signal within one gene, default=2.}
 
-\item{sm}{Number of mediators with signal within one gene, default=5. (affect when hypo is not "H00")}
+\item{num_pleio_genes}{Number of pleiotropic genes, default=30.}
 }
 \description{
 Simulate data for analysis.
@@ -53,6 +54,6 @@ Simulate data for analysis.
 H00=sim_mediation_data()
 H00_ss=sim_mediation_data(sample_size=100)
 H00_rh=sim_mediation_data(rho=0)
-H02=sim_mediation_data(hypo="H02",har=0.1,mm=0,vv=0.05,sm=2)
+H02=sim_mediation_data(hypo="H02",mm=0,vv=0.05,sm=2)
 HA=sim_mediation_data(hypo="HA",mm=0.1,vv=0.1,sm=10)
 }

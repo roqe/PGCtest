@@ -17,5 +17,5 @@ pre_fit_one=function(M,Y,X){
   b.sum<-sum(t(b.hat)%*%cb.svd$u%*%diag(1/sqrt(cb.svd$d),ncol=length(b.hat)))
   corrB=cov2cor(covB)
 
-  return(list(b=b,corrB=corrB,bs=ifelse(b.sum>0,1,-1)))
+  return(list(b=b,corrB=corrB,bs=ifelse(b.sum>0,1,-1),bh=b.hat,be=b.sd))
 }

@@ -1,6 +1,8 @@
 #' @param HA Dataset
 #' @param mc Number of cores for parallel computing, default=5.
-#' @param prec The unit to construct empirical normal product pdf using in composite test, default=1e-3.
+#' @param GC List for adjusting co-regulating variants, the output from select_GC.
+#' @param bSNP Threshold for selecting significant variants to be adjusted, default=2.
+#' @param apply_TSQ Use Hotelling's T-squared statistic for gene-trait association, default=False.
 #' @import parallel
 #' @import SKAT
 #' @import GBJ
@@ -11,7 +13,11 @@
 #' HA=sim_mediation_data(hypo="HA",mm=0.1,vv=0.1,sm=10)
 #' stat=GCN(HA)
 
-GCN=function(HA,mc=5,prec=1e-3,GC=NULL,bSNP=2){
+GCN=function(HA,mc=5,GC=NULL,bSNP=2,apply_TSQ=F,apply_GBJ=F,apply_GHC=F,apply_mnP=F,apply_ACAT=T,single=F,fill=F){
+  if(sum(apply_TSQ,apply_GBJ,apply_GHC,apply_mnP,apply_ACAT)==0){
+    print("Please choose at least one statistic for gene-trait association.")
+    return(NULL)
+  }
   Y=HA$Y
   X=HA$X
   nM=names(HA$M)[!sapply(HA$M,is.null)]
@@ -22,30 +28,35 @@ GCN=function(HA,mc=5,prec=1e-3,GC=NULL,bSNP=2){
         cad=which(!GC[[ny]]$gene%in%nm)[1:(nrow(GC[[1]])-1)]
         gs=cbind(GC[[ny]]$gene[cad],GC[[ny]]$leadSNP[cad])
         XX=do.call(cbind,apply(gs,1,function(gs){
-          slist=strsplit(gs[2],";")[[1]]
+          slist=paste0(gs[1],"_",strsplit(gs[2],";")[[1]])
           return(HA$M[[gs[1]]][slist])
         }))
-        X=cbind(X,XX)
+        X=data.frame(cbind(X,XX))
       }
       y=Y[[ny]]
       nad=which(!is.na(y))
       RG=pre_fit_one(M=M[nad,],Y=y[nad],X=X[nad,])
-      PG_TSQ=TSQ(RG$b,RG$corrB)
-      PG_GBJ=GBJ::GBJ(RG$b,RG$corrB)
-      PG_GHC=GBJ::GHC(RG$b,RG$corrB)
-      PG_mnP=GBJ::minP(RG$b,RG$corrB)
-      PG_ACAT=ACAT::ACAT(2*pnorm(abs(RG$b),lower.tail = F))
-      return(data.table(TSQ=safe_z(PG_TSQ$pv)*RG$bs,
-                  GBJ=safe_z(PG_GBJ$GBJ_pvalue)*RG$bs,
-                  GHC=safe_z(PG_GHC$GHC_pvalue)*RG$bs,
-                  mnP=safe_z(PG_mnP$minP_pvalue)*RG$bs,
-                  ACAT=safe_z(PG_ACAT)*RG$bs,
-                  leadSNP=paste(unique(c(names(RG$b)[which.max(abs(RG$b))],names(RG$b)[which(abs(RG$b)>bSNP)])),collapse = ";")))
+      if(single){
+        return(data.table(SNP=names(RG$b),beta_hat=RG$bh,beta_sd=RG$be))
+      }else{
+        if(apply_TSQ){ PG_TSQ=TSQ(RG$b,RG$corrB) }
+        if(apply_GBJ){ PG_GBJ=GBJ::GBJ(RG$b,RG$corrB) }
+        if(apply_GHC){ PG_GHC=GBJ::GHC(RG$b,RG$corrB) }
+        if(apply_mnP){ PG_mnP=GBJ::minP(RG$b,RG$corrB) }
+        if(apply_ACAT){ PG_ACAT=ACAT::ACAT(2*pnorm(abs(RG$b),lower.tail = F)) }
+      }
+      names(RG$b)=gsub(paste0(nm,"_"),"",names(RG$b))
+      return(cbind(data.table(TSQ=ifelse(apply_TSQ,safe_z(PG_TSQ$pv)*RG$bs,NA),
+                  GBJ=ifelse(apply_GBJ,safe_z(PG_GBJ$GBJ_pvalue)*RG$bs,NA),
+                  GHC=ifelse(apply_GHC,safe_z(PG_GHC$GHC_pvalue)*RG$bs,NA),
+                  mnP=ifelse(apply_mnP,safe_z(PG_mnP$minP_pvalue)*RG$bs,NA),
+                  ACAT=ifelse(apply_ACAT,safe_z(PG_ACAT)*RG$bs,NA),
+                  leadSNP=paste(unique(c(names(RG$b)[which.max(abs(RG$b))],names(RG$b)[which(abs(RG$b)>bSNP)])),collapse = ";")),t(RG$b)))
     })
     names(PV)=names(Y)
     return(data.table::rbindlist(PV,idcol="trait"))
   },mc.cores = mc,mc.preschedule = T,mc.cleanup = T)
   names(GS)=nM
-  return(data.table::rbindlist(GS,idcol="gene"))
+  return(data.table::rbindlist(GS,idcol="gene",fill = fill,use.names = F))
 }
 

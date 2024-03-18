@@ -18,5 +18,5 @@ zpm=function(S,M,Y,X){
   cov.b<-vcov(fit.y0)[(q+2):(q+p+1), (q+2):(q+p+1)]
   cb.svd<-svd(cov.b)
   b.sum<-sum(t(b.hat)%*%cb.svd$u%*%diag(1/sqrt(cb.svd$d),ncol=length(b.hat)))
-  return(list(as=ifelse(a.sum>0,1,-1),bs=ifelse(b.sum>0,1,-1)))
+  return(list(as=sign(a.sum),bs=sign(b.sum)))
 }

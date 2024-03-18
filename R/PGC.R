@@ -8,9 +8,10 @@
 #' stat=GCN(HA)
 #' FR=PGC(stat)
 
-PGC=function(stt,mc=5,dcrr=T){
+PGC=function(stt,dcrr=F){
   RR=list()
   for(app in c("TSQ","GBJ","GHC","mnP","ACAT")){
+    if(all(is.na(stt[[app]]))) next
     ZZZ=data.frame(data.table::dcast(stt,gene~trait,value.var = app))
     Q=apply((combn(ncol(ZZZ)-1,2)+1),2,function(id){
       a=unlist(ZZZ[,id[1]])
@@ -22,7 +23,7 @@ PGC=function(stt,mc=5,dcrr=T){
         a=zz[1,]
         b=zz[2,]
       }
-      Mcn=CompTest(a,b,mc)
+      Mcn=CompTestER(a,b)
       Msb=Sobel(a,b)
       Mjs=JointSig(a,b)
       return(data.table::data.table(ensg=ZZZ$gene,app=app,Za=a,Zb=b,Pcn=Mcn$pp,Psb=Msb$pp,Pjs=Mjs$pp))
